@@ -447,7 +447,7 @@
           const mailBody = encodeURIComponent("Hi Krishna,\n\nI was very impressed by your portfolio and the AI systems you've built. I would love to discuss a potential role or collaboration with you.\n\nPlease let me know when you might be available for a chat.\n\nBest regards,\n[Your Name/Company]");
 
           return (
-            <div className="min-h-screen text-zinc-900 dark:text-zinc-50 font-sans selection:bg-blue-200 dark:selection:bg-blue-900 relative overflow-x-hidden">
+            <div className="min-h-screen text-zinc-900 dark:text-zinc-50 font-sans selection:bg-blue-200 dark:selection:bg-blue-900 relative">
               
               {/* STORY MODAL (Full Screen Overlay) */}
               {activeStory && (
@@ -547,7 +547,7 @@
               <div className="max-w-lg mx-auto bg-white dark:bg-black min-h-screen sm:border-x border-zinc-200 dark:border-zinc-800 relative shadow-xl flex flex-col">
                 
                 {/* Top Navbar */}
-                <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 px-4 py-3 flex items-center justify-between">
+                <header className="sticky top-0 z-40 h-14 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 px-4 flex items-center justify-between">
                   <h1 className="text-xl font-bold font-serif italic tracking-tight">Krishna Feed</h1>
                   <div className="w-6 h-6"></div>
                 </header>
@@ -633,7 +633,7 @@
                   </section>
 
                   {/* Grid/Feed/Reels Toggle */}
-                  <section className="flex border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black sticky top-[60px] z-30">
+                  <section className="flex border-b border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-black/95 backdrop-blur-md sticky top-14 z-30">
                     <button 
                       onClick={() => setActiveTab('posts')}
                       className={`flex-1 flex justify-center py-3 border-b-2 transition-colors ${activeTab === 'posts' ? 'border-zinc-900 dark:border-white text-zinc-900 dark:text-white' : 'border-transparent text-zinc-400 dark:text-zinc-600 hover:text-zinc-900 dark:hover:text-white'}`}
@@ -663,7 +663,7 @@
 
                   {/* Dynamic Content Slider */}
                   {/* Notice: The relative tab sets the container height. Absolute tabs overflow harmlessly downward. */}
-                  <section className="bg-zinc-50 dark:bg-zinc-950 pb-16 overflow-x-hidden">
+                  <section className="bg-zinc-50 dark:bg-zinc-950 pb-16 overflow-hidden w-full relative">
                     <div 
                       className="relative flex items-start w-full touch-pan-y"
                       style={sliderStyle}
