@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Krishna Malhotra - Portfolio</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM (UMD) -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Babel (Compiles JSX in the browser) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Hide scrollbar for clean UI */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        @keyframes marquee {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        .animate-marquee {
+            display: inline-block;
+            white-space: nowrap;
+            animation: marquee 5s linear infinite;
+        }
+
+        @keyframes storyProgress {
+            from { width: 0%; }
+            to { width: 100%; }
+        }
+        .story-progress {
+            animation: storyProgress 5s linear forwards;
+        }
+    </style>
+</head>
+<body class="bg-zinc-50 dark:bg-zinc-950">
+    <!-- React Mount Point -->
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- SVG ICON COMPONENTS ---
+        const IconProps = { stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", fill: "none" };
+        const Home = (p) => <svg viewBox="0 0 24 24" {...IconProps} {...p}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
+        const Search = (p) => <svg viewBox="0 0 24 24" {...IconProps} {...p}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
+        const PlusSquare = (p) => <svg viewBox="0 0 24 24" {...IconProps} {...p}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>;
+        const PlaySquare = (p) => <svg viewBox="0 0 24 24" {...IconProps} {...p}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><polygon points="10 8 16 12 10 16 10 8"/></svg>;
+        const User = (p) => <svg viewBox="0 0 24 24" {...IconProps} {...p}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+        const CheckCircle2 = (p) => <svg viewBox="0 0 24 24" {...IconProps} {...p}><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>;
+        const LinkIcon = (p) => <svg viewBox="0 0 24 24" {...IconProps} {...p}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>;
+        const Briefcase = (p) => <svg viewBox="0 0 24 24" {...IconProps} {...p}><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>;
+        const Award = (p) => <svg viewBox="0 0 24 24" {...IconProps} {...p}><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>;
+        const FileText = (p) => <svg viewBox="0 0 24 24" {...IconProps} {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>;
+        const Play = (p) => <svg viewBox="0 0 24 24" {...IconProps} {...p} fill={p.fill || "none"}><polygon points="5 3 19 12 5 21 5 3"/></svg>;
+        const X = (p) => <svg viewBox="0 0 24 24" {...IconProps} {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+        const Music = (p) => <svg viewBox="0 0 24 24" {...IconProps} {...p}><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>;
+
+        // --- COMPONENTS ---
+
+        // Reusable Profile Picture Component with Fallback Logic
+        const ProfilePicture = ({ containerClass = "", innerClass = "", textClass = "", initials = "KM" }) => {
+            const [imgFailed, setImgFailed] = useState(false);
+            
+            return (
+                <div className={`rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 flex-shrink-0 ${containerClass}`}>
+                    <div className={`w-full h-full rounded-full flex items-center justify-center overflow-hidden relative ${innerClass}`}>
+                        {!imgFailed && (
+                            <img 
+                                src="./profile.jpg" 
+                                alt="Profile" 
+                                className="absolute inset-0 w-full h-full object-cover z-10"
+                                onError={() => setImgFailed(true)}
+                            />
+                        )}
+                        <span className={`font-black z-0 ${textClass}`}>{initials}</span>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- DATA ---
+        const PROJECTS = [
+          {
+            id: 1, title: "Threat Recognition System", type: "AI + Security",
+            overview: "An AI-driven security system focused on detecting potential threats such as violence or weapons in visual feeds. Intended for surveillance, monitoring, and rapid-response environments.",
+            capabilities: "Image/video-based threat detection • Real-time or near-real-time inference • Alert-oriented system design • Security-focused ML workflow",
+            tech: "Python, Machine Learning, Computer Vision, OpenCV, Web frontend components",
+            github: "https://github.com/i-krishnamalhotra/Threat-Recognition-System",
+            gradient: "from-amber-500 to-orange-900"
+          },
+          {
+            id: 2, title: "Consistent Characters AI – Fashion Character Designer", type: "Fashion Character Designer",
+            overview: "An experimental AI workflow focused on generating style-consistent characters for fashion and concept design across multiple generations.",
+            capabilities: "Consistent character generation • Fashion-focused prompt engineering • Image-to-image and re-face pipelines",
+            tech: "Python, Generative AI, Diffusion-based image models, Prompt engineering",
+            github: "https://github.com/i-krishnamalhotra/Consistent-Characters-AI-AI-Powered-Fashion-Character-Designer",
+            gradient: "from-pink-500 to-rose-900"
+          },
+          {
+            id: 3, title: "Multi-Character Dialogue Lip-Sync Engine", type: "Advanced / Research-Level",
+            overview: "A highly advanced video-processing and AI pipeline that enables accurate lip-syncing for multiple characters simultaneously in a single video. The project overcomes the core limitation of traditional lip-sync models (single-face only) by introducing face tracking, identity persistence, and per-character inference.",
+            capabilities: "Detects and tracks multiple faces across video frames • Uses IoU-based face tracking with temporal smoothing to prevent jitter • Runs independent Wav2Lip inference for each detected character • Re-composites outputs using feathered blending for seamless results",
+            tech: "Python, OpenCV, face_recognition, Wav2Lip, MoviePy, Computer Vision & Video Processing",
+            github: "https://github.com/i-krishnamalhotra/Multi-Character-Dialogue-Lip-Sync-Engine",
+            gradient: "from-blue-600 to-indigo-900"
+          },
+          {
+            id: 4, title: "AI-Powered Talking Avatar Generator", type: "Complex AI Pipeline",
+            overview: "A modular, GPU-aware AI pipeline that converts a static image and audio input into a high-quality talking avatar video. The system is split into multiple execution stages to handle hardware constraints and ensure output continuity.",
+            capabilities: "Audio transcription using Whisper • Prompt generation for visual continuity using LLMs • AI-based video generation via ComfyUI • Accurate lip-sync using Wav2Lip • Optional video enhancement and upscaling",
+            tech: "Python, Whisper (Speech-to-Text), Generative AI (LLMs), ComfyUI, Wav2Lip, Real-ESRGAN",
+            github: "https://github.com/i-krishnamalhotra/AI-Powered-Talking-Avatar-Generator",
+            gradient: "from-emerald-500 to-teal-900"
+          },
+          {
+            id: 5, title: "Fully Automated AI YouTube Shorts Creator & Uploader", type: "Automation System",
+            overview: "An end-to-end automation system designed to create and upload YouTube Shorts without manual intervention. The pipeline handles scripting, visuals, voiceovers, and publishing logic.",
+            capabilities: "Automated script and content generation • AI-generated visuals and voiceovers • Video assembly for short-form platforms • Designed for scalable content production",
+            tech: "Python, Generative AI, Video processing tools, YouTube API, Automation pipelines",
+            github: "https://github.com/i-krishnamalhotra/Fully-Automated-AI-YouTube-Shorts-Creator-Uploader",
+            gradient: "from-rose-500 to-red-900"
+          },
+          {
+            id: 6, title: "UniConnect – University Management System", type: "Full-Stack System",
+            overview: "A full-stack university management platform centralizing academic content, assignments, resources, and communication for students, faculty, and administrators.",
+            capabilities: "Role-based access (student, teacher, admin) • Study material and assignment management • Community and communication features • Designed for institutional scalability",
+            tech: "Python, HTML, CSS, JavaScript, Database systems, Web application architecture",
+            github: "https://github.com/i-krishnamalhotra/UniConnect-university-management-system",
+            gradient: "from-violet-500 to-purple-900"
+          },
+          {
+            id: 7, title: "AI Fashion Designing Application", type: "Prototype Application",
+            overview: "A prototype application for AI-assisted fashion design, enabling rapid creation of apparel concepts and visual mockups.",
+            capabilities: "Rapid apparel concept generation • AI-assisted visual mockups • Design ideation workflows",
+            tech: "Python, Generative AI, Image synthesis models, Notebook-based workflows",
+            github: "https://github.com/i-krishnamalhotra/AI-Fashion-Designing-Application",
+            gradient: "from-fuchsia-500 to-purple-800"
+          },
+          {
+            id: 8, title: "Home Automation System", type: "Hardware & AI Prototype",
+            overview: "A Python-based smart home automation prototype featuring GUI control, experimental face-login authentication, and speech-recognition-driven commands.",
+            capabilities: "Smart home GUI control • Experimental face-login authentication • Speech-recognition driven commands",
+            tech: "Python, GUI frameworks, Speech Recognition, Basic security concepts",
+            github: "https://github.com/i-krishnamalhotra/home_automation",
+            gradient: "from-cyan-500 to-blue-800"
+          },
+          {
+            id: 9, title: "PDF to Audio Web App", type: "Utility App",
+            overview: "A lightweight application that converts PDF documents into spoken audio, improving accessibility and ease of content consumption.",
+            capabilities: "Document parsing • Text-to-speech conversion • Accessible content consumption",
+            tech: "Python, PDF parsing, Text-to-Speech (TTS), Jupyter Notebooks",
+            github: "https://github.com/i-krishnamalhotra/PDF-to-Audio-Web-App",
+            gradient: "from-lime-500 to-emerald-800"
+          },
+          {
+            id: 10, title: "College Website – Study Material Platform", type: "Web Development",
+            overview: "A Python-based academic website for hosting and managing college study materials, built with backend logic, templates, and static assets.",
+            capabilities: "Study material hosting • Backend routing and logic • Static asset management",
+            tech: "Python, HTML, CSS, Database handling, Backend web frameworks",
+            github: "https://github.com/i-krishnamalhotra/college_website_study_material",
+            gradient: "from-sky-400 to-indigo-800"
+          }
+        ];
+
+        // Mapped with expected image filenames based on instructions
+        const CREDENTIALS = [
+          { id: 1, type: 'Internship', title: 'Behtar Zindagi', role: 'Frontend & Data Viz', date: 'Jul-Aug 2024', image: 'internship_1.jpg', icon: <Briefcase className="w-5 h-5" /> },
+          { id: 2, type: 'Internship', title: 'Turboshine', role: 'IT Support Intern', date: 'Sep-Oct 2024', image: 'internship_2.jpg', icon: <Briefcase className="w-5 h-5" /> },
+          { id: 3, type: 'Internship', title: 'BWFL', role: 'Web & AI Chatbot', date: 'May-Jun 2024', image: 'internship_3.jpg', icon: <Briefcase className="w-5 h-5" /> },
+          { id: 4, type: 'Achievement', title: 'Build with India', role: 'Top 5000 / 25k Teams', date: 'Google Office', image: 'certificate_1.jpg', icon: <Award className="w-5 h-5" /> },
+          { id: 5, type: 'Hackathon', title: 'Smart India Hackathon', role: 'Internal (Team LAKERS)', date: 'Sep 2024', image: 'certificate_2.jpg', icon: <Award className="w-5 h-5" /> },
+          { id: 6, type: 'Hackathon', title: 'YOUTH4FUTURE', role: 'Event Organizer', date: 'Aug 2024', image: 'certificate_3.jpg', icon: <Award className="w-5 h-5" /> },
+          { id: 7, type: 'Certification', title: 'Data Analytics', role: 'CETPA Workshop', date: 'Apr 2024', image: 'certificate_4.jpg', icon: <FileText className="w-5 h-5" /> },
+          { id: 8, type: 'Leadership', title: 'Avensis\'25', role: 'Discipline Team', date: 'Jan 2025', image: 'certificate_5.jpg', icon: <Award className="w-5 h-5" /> },
+          { id: 9, type: 'Leadership', title: 'Personarise Workshop', role: 'Event Organizer', date: 'Oct 2023', image: 'certificate_6.jpg', icon: <Award className="w-5 h-5" /> },
+          { id: 10, type: 'Participation', title: 'Communifiesta', role: 'BCA Placement Cell', date: 'Nov 2023', image: 'certificate_7.jpg', icon: <FileText className="w-5 h-5" /> },
+          { id: 11, type: 'Publication', title: 'Creation 2023', role: 'Editorial Board Member', date: '2023', image: 'certificate_8.jpg', icon: <FileText className="w-5 h-5" /> }
+        ];
+
+        const REELS = [
+          { id: 1, title: 'Computer Vision Mastery', gradient: 'from-blue-600 to-indigo-900', topSkill: 'AI Vision', subSkills: ['OpenCV & Face Rec', 'Multi-Face Tracking', 'IoU Smoothing', 'Wav2Lip Inference'], icon: '👁️' },
+          { id: 2, title: 'Generative AI Pipelines', gradient: 'from-emerald-500 to-teal-900', topSkill: 'Generative AI', subSkills: ['LLM Prompt Eng', 'ComfyUI Workflows', 'Whisper Transcripts', 'Real-ESRGAN'], icon: '🤖' },
+          { id: 3, title: 'End-to-End Automation', gradient: 'from-rose-500 to-red-900', topSkill: 'Automation', subSkills: ['Python Scripting', 'YouTube APIs', 'Data Pipelines', 'Zero-Touch Systems'], icon: '⚙️' },
+          { id: 4, title: 'Full-Stack Architecture', gradient: 'from-violet-500 to-purple-900', topSkill: 'Full-Stack', subSkills: ['React Frameworks', 'HTML5 / CSS3 / JS', 'Database Management', 'System Scalability'], icon: '💻' },
+          { id: 5, title: 'Machine Learning & NLP', gradient: 'from-pink-500 to-rose-900', topSkill: 'ML & NLP', subSkills: ['Threat Detection', 'NLP Chatbots', 'Data Visualisation', 'Real-time Inference'], icon: '🧠' },
+          { id: 6, title: 'Hardware & Web Systems', gradient: 'from-cyan-500 to-blue-900', topSkill: 'Systems', subSkills: ['Home Automation', 'Speech Recognition', 'GUI Frameworks', 'Performance Testing'], icon: '🔌' }
+        ];
+
+        // Enhanced Highlights to act as Interactive Stories
+        const HIGHLIGHTS = [
+          { 
+            id: 1, name: "AI Vision", icon: "👁️", 
+            storyTitle: "Advanced Computer Vision",
+            storyBg: "from-blue-900 to-slate-900",
+            description: "Overcame traditional single-face constraints by building a multi-character pipeline.",
+            accomplishments: [
+              "Implemented IoU-based face tracking with temporal smoothing.",
+              "Ran independent per-character Wav2Lip inference.",
+              "Created seamless compositing using feathered blending."
+            ],
+            tech: ["Python", "OpenCV", "Wav2Lip", "face_recognition"]
+          },
+          { 
+            id: 2, name: "Avatars", icon: "🤖", 
+            storyTitle: "Generative AI Avatars",
+            storyBg: "from-emerald-900 to-slate-900",
+            description: "Developed a GPU-aware pipeline to convert static images & audio into talking video.",
+            accomplishments: [
+              "Automated audio transcription via Whisper.",
+              "Maintained visual continuity across frames using LLMs.",
+              "Integrated ComfyUI and Real-ESRGAN for upscaling."
+            ],
+            tech: ["Generative AI", "ComfyUI", "Whisper", "Real-ESRGAN"]
+          },
+          { 
+            id: 3, name: "Automation", icon: "⚙️", 
+            storyTitle: "End-to-End Automation",
+            storyBg: "from-rose-900 to-slate-900",
+            description: "Built scalable systems that operate with zero manual intervention.",
+            accomplishments: [
+              "Engineered a fully automated YouTube Shorts creator.",
+              "Handled dynamic script generation and voiceovers.",
+              "Integrated direct publishing logic via platform APIs."
+            ],
+            tech: ["Python", "YouTube API", "Data Pipelines", "Video Assembly"]
+          },
+          { 
+            id: 4, name: "Full-Stack", icon: "💻", 
+            storyTitle: "Full-Stack Development",
+            storyBg: "from-violet-900 to-slate-900",
+            description: "Architected centralized management platforms for academic institutions.",
+            accomplishments: [
+              "Developed UniConnect with robust role-based access.",
+              "Integrated NLP-powered AI chatbots for user engagement.",
+              "Conducted rigorous performance and scalability testing."
+            ],
+            tech: ["React/JS", "HTML5/CSS3", "Database Systems", "NLP"]
+          }
+        ];
+
+        const SkeletonPost = () => (
+          <div className="mb-6 pb-4 border-b border-zinc-200 dark:border-zinc-800 animate-pulse">
+            <div className="flex items-center justify-between p-3">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-zinc-300 dark:bg-zinc-800"></div>
+                <div className="space-y-2">
+                  <div className="h-3 w-24 bg-zinc-300 dark:bg-zinc-800 rounded"></div>
+                  <div className="h-2 w-16 bg-zinc-300 dark:bg-zinc-800 rounded"></div>
+                </div>
+              </div>
+            </div>
+            <div className="w-full aspect-square bg-zinc-300 dark:bg-zinc-800"></div>
+            <div className="p-3 space-y-3">
+              <div className="h-3 w-1/4 bg-zinc-300 dark:bg-zinc-800 rounded"></div>
+              <div className="h-3 w-full bg-zinc-300 dark:bg-zinc-800 rounded"></div>
+            </div>
+          </div>
+        );
+
+        const Post = ({ project }) => {
+          const [showFullCaption, setShowFullCaption] = useState(false);
+
+          return (
+            <div className="mb-2 sm:mb-6 sm:border sm:border-zinc-200 sm:dark:border-zinc-800 sm:rounded-lg bg-white dark:bg-black">
+              {/* Post Header */}
+              <div className="flex items-center p-3 gap-3">
+                <ProfilePicture 
+                    containerClass="w-8 h-8 p-[2px]" 
+                    innerClass="bg-white dark:bg-black border border-white dark:border-black"
+                    textClass="text-xs text-zinc-900 dark:text-zinc-100"
+                />
+                <div>
+                  <div className="flex items-center gap-1">
+                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">krishna.malhotra</h3>
+                    <CheckCircle2 className="w-3 h-3 text-blue-500" />
+                  </div>
+                  <p className="text-xs text-zinc-500">{project.type}</p>
+                </div>
+              </div>
+
+              {/* Post Media */}
+              <div className={`w-full aspect-square bg-gradient-to-tr ${project.gradient} relative overflow-hidden flex items-center justify-center select-none`}>
+                <div className="absolute inset-0 opacity-20 mix-blend-overlay" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
+                <div className="text-center z-10 px-8">
+                  <h2 className="text-3xl font-extrabold text-white tracking-tight drop-shadow-md mb-4">{project.title}</h2>
+                  <a href={project.github} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-md rounded-full text-white text-sm font-medium border border-white/30 hover:bg-white/30 transition-colors cursor-pointer">
+                    <LinkIcon className="w-4 h-4" /> View Architecture
+                  </a>
+                </div>
+              </div>
+
+              {/* Post Content */}
+              <div className="p-3">
+                {/* Caption */}
+                <div className="text-sm text-zinc-900 dark:text-zinc-100 mb-2">
+                  <span className="font-semibold mr-2">krishna.malhotra</span>
+                  <span className={showFullCaption ? '' : 'line-clamp-2 inline'}>
+                    {project.overview}
+                  </span>
+                  {!showFullCaption && project.overview.length > 100 && (
+                    <button onClick={() => setShowFullCaption(true)} className="text-zinc-500 ml-1 hover:text-zinc-400 focus:outline-none">
+                      more
+                    </button>
+                  )}
+                </div>
+
+                {/* Technical details */}
+                <div className="mt-3 space-y-2">
+                  <div className="text-sm">
+                    <span className="font-semibold text-zinc-900 dark:text-zinc-100 mr-2">system_admin</span>
+                    <span className="text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded mr-1">Tech Stack</span>
+                    <span className="text-zinc-800 dark:text-zinc-200">{project.tech}</span>
+                  </div>
+                  <div className="text-sm mt-1">
+                    <span className="font-semibold text-zinc-900 dark:text-zinc-100 mr-2">ai_reviewer</span>
+                    <span className="text-emerald-500 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded mr-1">Capabilities</span>
+                    <span className="text-zinc-800 dark:text-zinc-200">{project.capabilities}</span>
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-zinc-500 uppercase mt-3 tracking-wide">
+                  <a href={project.github} target="_blank" rel="noreferrer" className="hover:underline flex items-center gap-1">
+                    View Source Code <LinkIcon className="w-3 h-3" />
+                  </a>
+                </p>
+              </div>
+            </div>
+          );
+        };
+
+        function App() {
+          const [isLoading, setIsLoading] = useState(true);
+          const [activeTab, setActiveTab] = useState('posts'); // 'posts', 'reels', 'tagged'
+          const [activeStory, setActiveStory] = useState(null); // Holds active highlight object
+          const [activeCredential, setActiveCredential] = useState(null); // Holds clicked credential for image modal
+          
+          // Swipe implementation variables
+          const [touchStartX, setTouchStartX] = useState(null);
+          const [touchStartY, setTouchStartY] = useState(null);
+          const [touchEndX, setTouchEndX] = useState(null);
+          const [isScrolling, setIsScrolling] = useState(false);
+          const [swipeOffset, setSwipeOffset] = useState(0);
+
+          // Simulate network loading
+          useEffect(() => {
+            const timer = setTimeout(() => setIsLoading(false), 1200);
+            return () => clearTimeout(timer);
+          }, []);
+
+          // Auto-close story after 5 seconds
+          useEffect(() => {
+            if (activeStory) {
+              const timer = setTimeout(() => setActiveStory(null), 5000);
+              return () => clearTimeout(timer);
+            }
+          }, [activeStory]);
+
+          // --- ROBUST SWIPE LOGIC ---
+          const minSwipeDistance = 75; // Firmer threshold to prevent accidental swipes
+
+          const onTouchStart = (e) => {
+            setTouchEndX(null);
+            setTouchStartX(e.targetTouches[0].clientX);
+            setTouchStartY(e.targetTouches[0].clientY);
+            setIsScrolling(false);
+          };
+
+          const onTouchMove = (e) => {
+            if (touchStartX === null || touchStartY === null) return;
+            
+            const currentX = e.targetTouches[0].clientX;
+            const currentY = e.targetTouches[0].clientY;
+            
+            const diffX = currentX - touchStartX;
+            const diffY = currentY - touchStartY;
+
+            // Determine user intent early: If vertical movement is greater than horizontal, it's a scroll.
+            if (!isScrolling && Math.abs(diffY) > 10 && Math.abs(diffY) > Math.abs(diffX)) {
+                setIsScrolling(true);
+            }
+
+            // Cancel horizontal swipe tracking entirely if the user is scrolling
+            if (isScrolling) return;
+
+            setTouchEndX(currentX);
+            
+            // Apply realistic rubber-band effect on boundaries
+            if (activeTab === 'posts' && diffX > 0) {
+                setSwipeOffset(diffX * 0.2); 
+            } else if (activeTab === 'tagged' && diffX < 0) {
+                setSwipeOffset(diffX * 0.2);
+            } else {
+                setSwipeOffset(diffX);
+            }
+          };
+
+          const onTouchEnd = () => {
+            if (touchStartX !== null && touchEndX !== null && !isScrolling) {
+              const distance = touchStartX - touchEndX;
+              const isLeftSwipe = distance > minSwipeDistance;
+              const isRightSwipe = distance < -minSwipeDistance;
+
+              if (isLeftSwipe) {
+                if (activeTab === 'posts') setActiveTab('reels');
+                else if (activeTab === 'reels') setActiveTab('tagged');
+              } else if (isRightSwipe) {
+                if (activeTab === 'tagged') setActiveTab('reels');
+                else if (activeTab === 'reels') setActiveTab('posts');
+              }
+            }
+            // Reset state for next interaction
+            setTouchStartX(null);
+            setTouchStartY(null);
+            setTouchEndX(null);
+            setSwipeOffset(0);
+            setIsScrolling(false);
+          };
+
+          // Calculate visual translation positions
+          let baseTranslate = 0;
+          if (activeTab === 'reels') baseTranslate = -33.333333;
+          if (activeTab === 'tagged') baseTranslate = -66.666667;
+
+          const isSwiping = touchStartX !== null && !isScrolling && Math.abs(swipeOffset) > 0;
+          const sliderStyle = {
+            width: '300%',
+            transform: `translateX(calc(${baseTranslate}% + ${swipeOffset}px))`,
+            transition: isSwiping ? 'none' : 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)'
+          };
+
+
+          // Mailto Configuration
+          const contactEmail = "its.krishnamalhotra@gmail.com";
+          const mailSubject = encodeURIComponent("Job Opportunity - Krishna Malhotra");
+          const mailBody = encodeURIComponent("Hi Krishna,\n\nI was very impressed by your portfolio and the AI systems you've built. I would love to discuss a potential role or collaboration with you.\n\nPlease let me know when you might be available for a chat.\n\nBest regards,\n[Your Name/Company]");
+
+          return (
+            <div className="min-h-screen text-zinc-900 dark:text-zinc-50 font-sans selection:bg-blue-200 dark:selection:bg-blue-900 relative overflow-x-hidden">
+              
+              {/* STORY MODAL (Full Screen Overlay) */}
+              {activeStory && (
+                <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-200">
+                  {/* Progress Bar */}
+                  <div className="absolute top-4 left-4 right-4 flex gap-1 z-50">
+                    <div className="h-0.5 flex-1 bg-white/30 rounded-full overflow-hidden">
+                      <div className="h-full bg-white story-progress rounded-full"></div>
+                    </div>
+                  </div>
+                  
+                  {/* Story Header */}
+                  <div className="absolute top-8 left-4 right-4 flex items-center justify-between z-50">
+                    <div className="flex items-center gap-2">
+                      <ProfilePicture 
+                          containerClass="w-8 h-8 p-[1px]" 
+                          innerClass="bg-black border-none"
+                          textClass="text-xs text-white"
+                      />
+                      <span className="text-white text-sm font-semibold drop-shadow-md">krishna.malhotra</span>
+                      <span className="text-white/70 text-xs">2h</span>
+                    </div>
+                    <button onClick={() => setActiveStory(null)} className="text-white p-1 hover:bg-white/20 rounded-full transition-colors">
+                      <X className="w-6 h-6 drop-shadow-md" />
+                    </button>
+                  </div>
+
+                  {/* Story Content Area */}
+                  <div className={`w-full max-w-lg h-full max-h-[90vh] sm:rounded-2xl bg-gradient-to-br ${activeStory.storyBg} relative flex flex-col justify-center p-8 overflow-hidden`}>
+                    {/* Abstract overlay */}
+                    <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white to-transparent mix-blend-overlay"></div>
+                    
+                    <div className="z-10 bg-black/40 backdrop-blur-xl p-6 rounded-2xl border border-white/20 shadow-2xl transform transition-all hover:scale-105">
+                      <div className="text-4xl mb-4">{activeStory.icon}</div>
+                      <h2 className="text-2xl font-black text-white mb-2 leading-tight">{activeStory.storyTitle}</h2>
+                      <p className="text-zinc-300 text-sm mb-6">{activeStory.description}</p>
+                      
+                      <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">Key Implementations</h3>
+                      <ul className="space-y-2 mb-6">
+                        {activeStory.accomplishments.map((acc, i) => (
+                          <li key={i} className="text-sm text-zinc-100 flex items-start gap-2">
+                            <span className="text-blue-500 mt-0.5">•</span> {acc}
+                          </li>
+                        ))}
+                      </ul>
+
+                      <div className="flex flex-wrap gap-2">
+                        {activeStory.tech.map(t => (
+                          <span key={t} className="px-2 py-1 bg-white/10 rounded text-xs font-medium text-white border border-white/10">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* CREDENTIAL IMAGE MODAL (Full Screen Overlay) */}
+              {activeCredential && (
+                <div className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-200 p-4 sm:p-8">
+                  <button onClick={() => setActiveCredential(null)} className="absolute top-4 right-4 sm:top-6 sm:right-6 text-white p-2 hover:bg-white/20 rounded-full transition-colors z-50">
+                    <X className="w-8 h-8 drop-shadow-md" />
+                  </button>
+                  
+                  <div className="relative w-full max-w-4xl max-h-[75vh] flex items-center justify-center">
+                    <img 
+                      src={`./${activeCredential.image}`} 
+                      alt={activeCredential.title} 
+                      className="max-w-full max-h-[75vh] object-contain rounded-md shadow-2xl"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.nextElementSibling.style.display = 'flex';
+                      }}
+                    />
+                    {/* Fallback if image fails to load in modal */}
+                    <div className="hidden flex-col items-center justify-center text-center p-8 bg-zinc-900 rounded-2xl border border-zinc-800 w-full max-w-md aspect-square">
+                       <div className="w-20 h-20 rounded-full bg-blue-900/30 flex items-center justify-center text-blue-400 mb-4">
+                         {activeCredential.icon}
+                       </div>
+                       <h2 className="text-xl font-bold text-white mb-2">{activeCredential.title}</h2>
+                       <p className="text-zinc-400 text-sm">{activeCredential.role}</p>
+                       <p className="text-xs text-zinc-500 mt-4">High-resolution image not available</p>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-6 text-center max-w-lg">
+                    <h3 className="text-white font-bold text-lg sm:text-xl">{activeCredential.title}</h3>
+                    <p className="text-zinc-300 text-sm mt-1">{activeCredential.role} • {activeCredential.date}</p>
+                    <span className="inline-block px-2 py-1 bg-white/10 rounded text-[10px] font-medium text-white border border-white/10 mt-3 uppercase tracking-wider">
+                      {activeCredential.type}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="max-w-lg mx-auto bg-white dark:bg-black min-h-screen sm:border-x border-zinc-200 dark:border-zinc-800 relative shadow-xl flex flex-col">
+                
+                {/* Top Navbar */}
+                <header className="sticky top-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 px-4 py-3 flex items-center justify-between">
+                  <h1 className="text-xl font-bold font-serif italic tracking-tight">Krishna Feed</h1>
+                  <div className="w-6 h-6"></div>
+                </header>
+
+                <main className="w-full flex-1">
+                  
+                  {/* Profile Section */}
+                  <section className="px-4 pt-6 pb-2">
+                    <div className="flex items-center justify-between mb-4">
+                      
+                      <ProfilePicture 
+                          containerClass="w-20 h-20 sm:w-24 sm:h-24 p-1" 
+                          innerClass="bg-zinc-100 dark:bg-zinc-900 border-2 border-white dark:border-black"
+                          textClass="text-2xl text-zinc-400 dark:text-zinc-600"
+                      />
+                      
+                      <div className="flex gap-6 sm:gap-8 text-center flex-1 justify-center ml-4">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-lg">{PROJECTS.length}</span>
+                          <span className="text-sm text-zinc-500">Projects</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-lg">{CREDENTIALS.length}</span>
+                          <span className="text-sm text-zinc-500">Certs</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-lg">∞</span>
+                          <span className="text-sm text-zinc-500">Ideas</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mb-4">
+                      <h2 className="font-bold text-sm sm:text-base flex items-center gap-1">
+                        Krishna Malhotra <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                      </h2>
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400">Engineer</p>
+                      <p className="text-sm mt-1 whitespace-pre-line leading-relaxed">
+                        🚀 AI Engineer | Automation Builder | System Designer<br/>
+                        💻 Full-Stack Development & Advanced Computer Vision<br/>
+                        🔬 Building production-ready intelligent pipelines.
+                      </p>
+                      <a href="https://github.com/i-krishnamalhotra" target="_blank" rel="noreferrer" className="text-sm text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center gap-1 mt-1">
+                        <LinkIcon className="w-3 h-3" /> github.com/i-krishnamalhotra
+                      </a>
+                    </div>
+
+                    {/* Primary Call To Action Buttons */}
+                    <div className="flex gap-2 mb-4">
+                      <a 
+                        href={`https://mail.google.com/mail/?view=cm&fs=1&to=${contactEmail}&su=${mailSubject}&body=${mailBody}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex-1 bg-zinc-900 text-white dark:bg-white dark:text-black font-semibold text-sm py-1.5 rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors flex items-center justify-center text-center"
+                      >
+                        Hire Me
+                      </a>
+                      <a 
+                        href="https://github.com/i-krishnamalhotra" target="_blank" rel="noreferrer"
+                        className="flex-1 bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100 font-semibold text-sm py-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex items-center justify-center text-center"
+                      >
+                        View GitHub
+                      </a>
+                    </div>
+                  </section>
+
+                  {/* Story Highlights (Now Interactive) */}
+                  <section className="px-2 pb-6 border-b border-zinc-200 dark:border-zinc-800">
+                    <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide px-2">
+                      {HIGHLIGHTS.map((highlight) => (
+                        <div key={highlight.id} onClick={() => setActiveStory(highlight)} className="flex flex-col items-center gap-1 cursor-pointer group">
+                          <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-zinc-300 to-zinc-400 dark:from-zinc-700 dark:to-zinc-600 p-[2px] group-hover:from-blue-400 group-hover:to-purple-500 transition-colors">
+                            <div className="w-full h-full bg-white dark:bg-zinc-950 border-2 border-white dark:border-black rounded-full flex items-center justify-center text-2xl transform transition-transform group-hover:scale-95">
+                              {highlight.icon}
+                            </div>
+                          </div>
+                          <span className="text-[11px] text-zinc-800 dark:text-zinc-200 font-medium">
+                            {highlight.name}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  {/* Grid/Feed/Reels Toggle */}
+                  <section className="flex border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black sticky top-[60px] z-30">
+                    <button 
+                      onClick={() => setActiveTab('posts')}
+                      className={`flex-1 flex justify-center py-3 border-b-2 transition-colors ${activeTab === 'posts' ? 'border-zinc-900 dark:border-white text-zinc-900 dark:text-white' : 'border-transparent text-zinc-400 dark:text-zinc-600 hover:text-zinc-900 dark:hover:text-white'}`}
+                    >
+                      <svg aria-label="Posts" className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm-.145 15.583h-3.32v-3.32h3.32v3.32zm0-4.46h-3.32v-3.32h3.32v3.32zm4.46 4.46h-3.32v-3.32h3.32v3.32zm0-4.46h-3.32v-3.32h3.32v3.32z"/>
+                        <rect fill="none" height="18" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" width="18" x="3" y="3"></rect>
+                        <line fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" x1="9.015" x2="9.015" y1="3" y2="21"></line>
+                        <line fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" x1="14.985" x2="14.985" y1="3" y2="21"></line>
+                        <line fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" x1="21" x2="3" y1="9.015" y2="9.015"></line>
+                        <line fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" x1="21" x2="3" y1="14.985" y2="14.985"></line>
+                      </svg>
+                    </button>
+                    <button 
+                      onClick={() => setActiveTab('reels')}
+                      className={`flex-1 flex justify-center py-3 border-b-2 transition-colors ${activeTab === 'reels' ? 'border-zinc-900 dark:border-white text-zinc-900 dark:text-white' : 'border-transparent text-zinc-400 dark:text-zinc-600 hover:text-zinc-900 dark:hover:text-white'}`}
+                    >
+                      <PlaySquare className="w-6 h-6" />
+                    </button>
+                    <button 
+                      onClick={() => setActiveTab('tagged')}
+                      className={`flex-1 flex justify-center py-3 border-b-2 transition-colors ${activeTab === 'tagged' ? 'border-zinc-900 dark:border-white text-zinc-900 dark:text-white' : 'border-transparent text-zinc-400 dark:text-zinc-600 hover:text-zinc-900 dark:hover:text-white'}`}
+                    >
+                      <User className="w-6 h-6" />
+                    </button>
+                  </section>
+
+                  {/* Dynamic Content Slider */}
+                  {/* Notice: The relative tab sets the container height. Absolute tabs overflow harmlessly downward. */}
+                  <section className="bg-zinc-50 dark:bg-zinc-950 pb-16 overflow-x-hidden">
+                    <div 
+                      className="relative flex items-start w-full touch-pan-y"
+                      style={sliderStyle}
+                      onTouchStart={onTouchStart}
+                      onTouchMove={onTouchMove}
+                      onTouchEnd={onTouchEnd}
+                    >
+                      
+                      {/* POSTS TAB */}
+                      {/* Only acts as 'relative' (dictating height) when active. Otherwise, it sits 'absolute' out of document flow. */}
+                      <div className={`w-1/3 flex-shrink-0 px-0 sm:px-4 py-2 sm:py-4 ${activeTab === 'posts' ? 'relative ml-0 z-10' : 'absolute top-0 left-0 z-0'}`}>
+                        {isLoading ? (
+                          <React.Fragment><SkeletonPost /><SkeletonPost /></React.Fragment>
+                        ) : (
+                          PROJECTS.map((project) => <Post key={project.id} project={project} />)
+                        )}
+                      </div>
+
+                      {/* REELS TAB */}
+                      {/* When active, it uses margin-left to position itself in the 2nd slot without absolute positioning. */}
+                      <div className={`w-1/3 flex-shrink-0 px-0 sm:px-4 py-1 sm:py-4 ${activeTab === 'reels' ? 'relative ml-[33.333333%] z-10' : 'absolute top-0 left-1/3 z-0'}`}>
+                        <div className="grid grid-cols-2 gap-1 sm:gap-2 px-1 sm:px-0">
+                          {REELS.map((reel) => (
+                            <div key={reel.id} className={`aspect-[9/16] relative bg-gradient-to-b ${reel.gradient} group cursor-pointer overflow-hidden rounded-md sm:rounded-lg shadow-sm flex flex-col justify-end`}>
+                              
+                              {/* Simulated Code Pattern Background for depth */}
+                              <div className="absolute inset-0 p-2 font-mono text-[5px] sm:text-[8px] text-white/10 leading-tight overflow-hidden select-none pointer-events-none whitespace-pre opacity-50">
+                                {`def execute_skill():\n  pipeline = load()\n  optimize(pipeline)\n  return success\n\nclass Master:\n  def __init__(self):\n    self.ready = True`}
+                              </div>
+
+                              {/* Massive background icon for visual interest */}
+                              <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none z-0">
+                                  <span className="text-[120px]">{reel.icon}</span>
+                              </div>
+
+                              {/* Center Skills Display (Replaces empty space) */}
+                              <div className="absolute inset-0 flex flex-col items-center justify-center z-10 px-2 sm:px-4 pb-12 pointer-events-none">
+                                  <h3 className="text-white text-sm sm:text-base font-black text-center mb-3 sm:mb-4 uppercase tracking-widest drop-shadow-lg border-b border-white/30 pb-1">
+                                      {reel.topSkill}
+                                  </h3>
+                                  <div className="flex flex-col gap-1.5 sm:gap-2 w-full">
+                                      {reel.subSkills.map((skill, idx) => (
+                                          <div key={idx} className="bg-black/30 backdrop-blur-md border border-white/20 rounded-md p-1.5 sm:p-2 text-center text-white text-[9px] sm:text-xs font-semibold shadow-xl transform transition-transform group-hover:scale-[1.02]">
+                                              {skill}
+                                          </div>
+                                      ))}
+                                  </div>
+                              </div>
+
+                              {/* Bottom Content Area */}
+                              <div className="z-20 p-2 sm:p-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent w-full">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <ProfilePicture 
+                                      containerClass="w-5 h-5 p-0" 
+                                      innerClass="bg-white border-none"
+                                      textClass="text-[8px] text-black"
+                                  />
+                                  <span className="text-white text-[11px] sm:text-xs font-semibold">krishna.malhotra</span>
+                                </div>
+                                
+                                <p className="text-white text-[10px] sm:text-xs font-medium leading-tight mb-2 drop-shadow-md pr-8">
+                                  Showcasing expertise in {reel.title} 🚀
+                                </p>
+
+                                {/* Scrolling Audio Marquee */}
+                                <div className="flex items-center gap-1 overflow-hidden w-[85%]">
+                                  <Music className="w-3 h-3 text-white flex-shrink-0" />
+                                  <div className="overflow-hidden whitespace-nowrap w-full mask-image-linear">
+                                    <span className="text-[9px] text-white inline-block animate-marquee font-medium">Original Audio • Tech Stack Breakdown • Production Ready • </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* TAGGED TAB (Credentials) */}
+                      {/* When active, it uses margin-left to position itself in the 3rd slot without absolute positioning. */}
+                      <div className={`w-1/3 flex-shrink-0 px-0 sm:px-4 py-1 sm:py-4 ${activeTab === 'tagged' ? 'relative ml-[66.666667%] z-10' : 'absolute top-0 left-2/3 z-0'}`}>
+                        <div className="grid grid-cols-2 gap-1 sm:gap-2 px-1 sm:px-0">
+                          {CREDENTIALS.map((cred) => (
+                            <div key={cred.id} onClick={() => setActiveCredential(cred)} className="aspect-square relative group bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 overflow-hidden cursor-pointer rounded-md sm:rounded-lg">
+                              
+                              {/* Image Layer (z-0) */}
+                              <img 
+                                src={`./${cred.image}`} 
+                                alt={cred.title} 
+                                className="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-500 group-hover:scale-105"
+                                onError={(e) => { 
+                                  e.currentTarget.style.display = 'none'; 
+                                  if (e.currentTarget.nextElementSibling) {
+                                    e.currentTarget.nextElementSibling.style.display = 'flex'; 
+                                  }
+                                }}
+                              />
+
+                              {/* Fallback Background (z-0, displayed if image fails) */}
+                              <div className="hidden absolute inset-0 bg-white dark:bg-black z-0 flex-col items-center justify-center">
+                                <div className="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400 opacity-50 mb-4">
+                                  {cred.icon}
+                                </div>
+                              </div>
+
+                              {/* Persistent Gradient Overlay (z-10) to ensure text readability over images */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/5 z-10 transition-opacity duration-300 group-hover:opacity-90"></div>
+
+                              {/* Persistent Text Layer (z-20) */}
+                              <div className="absolute inset-0 flex flex-col justify-end p-3 sm:p-4 z-20">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center text-white">
+                                    <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex items-center justify-center">
+                                      {cred.icon}
+                                    </div>
+                                  </div>
+                                  <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-white/90 drop-shadow-md">{cred.type}</span>
+                                </div>
+                                <h4 className="text-xs sm:text-sm font-bold text-white leading-tight drop-shadow-md line-clamp-2">{cred.title}</h4>
+                                <p className="text-[10px] sm:text-xs text-zinc-300 line-clamp-1 drop-shadow-md mt-0.5">{cred.role}</p>
+                                <p className="text-[9px] sm:text-[10px] text-zinc-400 mt-1 sm:mt-1.5 drop-shadow-md font-medium">{cred.date}</p>
+                              </div>
+                              
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                    </div>
+                  </section>
+
+                </main>
+
+                {/* Bottom Navigation (Mobile Only) */}
+                <nav className="fixed sm:hidden bottom-0 w-full max-w-lg mx-auto bg-white/90 dark:bg-black/90 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800 flex justify-between items-center px-6 py-3 z-50">
+                  <Home className="w-6 h-6 text-zinc-900 dark:text-zinc-100 cursor-pointer" />
+                  <Search className="w-6 h-6 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer transition-colors" />
+                  <PlusSquare className="w-6 h-6 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer transition-colors" />
+                  <PlaySquare className="w-6 h-6 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer transition-colors" />
+                  <ProfilePicture 
+                      containerClass="w-6 h-6 p-[1px] cursor-pointer" 
+                      innerClass="bg-white dark:bg-black border border-white dark:border-black"
+                      textClass="text-[6px] text-zinc-900 dark:text-zinc-100"
+                  />
+                </nav>
+
+              </div>
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
