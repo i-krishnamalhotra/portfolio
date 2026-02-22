@@ -34,22 +34,14 @@
             white-space: nowrap;
             animation: marquee 5s linear infinite;
         }
-
-        @keyframes storyProgress {
-            from { width: 0%; }
-            to { width: 100%; }
-        }
-        .story-progress {
-            animation: storyProgress 5s linear forwards;
-        }
     </style>
 </head>
-<body class="bg-zinc-50 dark:bg-zinc-950">
+<body class="bg-zinc-50 dark:bg-zinc-950 overscroll-none">
     <!-- React Mount Point -->
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
 
         // --- SVG ICON COMPONENTS ---
         const IconProps = { stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", fill: "none" };
@@ -343,10 +335,18 @@
         function App() {
           const [isLoading, setIsLoading] = useState(true);
           const [activeTab, setActiveTab] = useState('posts'); // 'posts', 'reels', 'tagged'
-          const [activeStory, setActiveStory] = useState(null); // Holds active highlight object
+          
+          // Story Modal State
+          const [activeStoryIndex, setActiveStoryIndex] = useState(null);
+          const [storyProgress, setStoryProgress] = useState(0);
+          const [isStoryPaused, setIsStoryPaused] = useState(false);
+          const [storyTouchStartY, setStoryTouchStartY] = useState(null);
+          const [storyDragY, setStoryDragY] = useState(0);
+          const touchStartTime = useRef(0);
+          
           const [activeCredential, setActiveCredential] = useState(null); // Holds clicked credential for image modal
           
-          // Swipe implementation variables
+          // Swipe implementation variables for Main Tabs
           const [touchStartX, setTouchStartX] = useState(null);
           const [touchStartY, setTouchStartY] = useState(null);
           const [touchEndX, setTouchEndX] = useState(null);
@@ -359,16 +359,98 @@
             return () => clearTimeout(timer);
           }, []);
 
-          // Auto-close story after 5 seconds
-          useEffect(() => {
-            if (activeStory) {
-              const timer = setTimeout(() => setActiveStory(null), 5000);
-              return () => clearTimeout(timer);
-            }
-          }, [activeStory]);
+          // --- STORY LOGIC (Progress, Pausing, and Auto-Advance) ---
+          const activeStory = activeStoryIndex !== null ? HIGHLIGHTS[activeStoryIndex] : null;
 
-          // --- ROBUST SWIPE LOGIC ---
-          const minSwipeDistance = 75; // Firmer threshold to prevent accidental swipes
+          useEffect(() => {
+            if (activeStoryIndex === null) return;
+            
+            // Advance progress by 1% roughly every 50ms = 5 seconds total per story
+            const interval = setInterval(() => {
+                if (!isStoryPaused) {
+                    setStoryProgress(prev => {
+                        if (prev >= 100) return 100;
+                        return prev + 1;
+                    });
+                }
+            }, 50);
+
+            return () => clearInterval(interval);
+          }, [activeStoryIndex, isStoryPaused]);
+
+          // When progress hits 100, automatically go to next story or close
+          useEffect(() => {
+              if (storyProgress >= 100) {
+                  if (activeStoryIndex < HIGHLIGHTS.length - 1) {
+                      setActiveStoryIndex(prev => prev + 1);
+                      setStoryProgress(0);
+                  } else {
+                      setActiveStoryIndex(null);
+                  }
+              }
+          }, [storyProgress, activeStoryIndex]);
+
+          // Story Event Handlers (Swipe down to close, Hold to pause, Tap to navigate)
+          const onStoryPointerDown = (e) => {
+              setStoryTouchStartY(e.clientY);
+              touchStartTime.current = Date.now();
+              setIsStoryPaused(true);
+          };
+
+          const onStoryPointerMove = (e) => {
+              if (storyTouchStartY !== null) {
+                  const dy = e.clientY - storyTouchStartY;
+                  if (dy > 0) { // Only allow dragging downwards
+                      setStoryDragY(dy);
+                  }
+              }
+          };
+
+          const onStoryPointerUpOrLeave = (e, direction) => {
+              setIsStoryPaused(false);
+              
+              if (storyTouchStartY === null) return; // Prevent triggering if no touch started
+              setStoryTouchStartY(null);
+              
+              const wasDrag = storyDragY > 100;
+              const dragDistance = storyDragY;
+              setStoryDragY(0);
+
+              // If pulled down far enough, close the modal completely
+              if (wasDrag) {
+                  setActiveStoryIndex(null);
+                  return;
+              }
+
+              // If it was just a pointer leave (mouse dragged off screen), unpause but don't advance
+              if (e.type === 'pointerleave' || e.type === 'pointercancel') {
+                  return; 
+              }
+
+              const holdDuration = Date.now() - touchStartTime.current;
+              
+              // If it was a quick tap and NOT a drag, navigate left or right
+              if (holdDuration < 250 && dragDistance < 20) {
+                  if (direction === 'left') {
+                      if (activeStoryIndex > 0) {
+                          setActiveStoryIndex(activeStoryIndex - 1);
+                          setStoryProgress(0);
+                      } else {
+                          setStoryProgress(0); // Restart current if it's the first one
+                      }
+                  } else if (direction === 'right') {
+                      if (activeStoryIndex < HIGHLIGHTS.length - 1) {
+                          setActiveStoryIndex(activeStoryIndex + 1);
+                          setStoryProgress(0);
+                      } else {
+                          setActiveStoryIndex(null); // Close if tapping right on the last story
+                      }
+                  }
+              }
+          };
+
+          // --- MAIN TABS SWIPE LOGIC ---
+          const minSwipeDistance = 75;
 
           const onTouchStart = (e) => {
             setTouchEndX(null);
@@ -379,48 +461,29 @@
 
           const onTouchMove = (e) => {
             if (touchStartX === null || touchStartY === null) return;
-            
             const currentX = e.targetTouches[0].clientX;
             const currentY = e.targetTouches[0].clientY;
-            
             const diffX = currentX - touchStartX;
             const diffY = currentY - touchStartY;
-
-            // Determine user intent early: If vertical movement is greater than horizontal, it's a scroll.
-            if (!isScrolling && Math.abs(diffY) > 10 && Math.abs(diffY) > Math.abs(diffX)) {
-                setIsScrolling(true);
-            }
-
-            // Cancel horizontal swipe tracking entirely if the user is scrolling
+            if (!isScrolling && Math.abs(diffY) > 10 && Math.abs(diffY) > Math.abs(diffX)) setIsScrolling(true);
             if (isScrolling) return;
-
             setTouchEndX(currentX);
-            
-            // Apply realistic rubber-band effect on boundaries
-            if (activeTab === 'posts' && diffX > 0) {
-                setSwipeOffset(diffX * 0.2); 
-            } else if (activeTab === 'tagged' && diffX < 0) {
-                setSwipeOffset(diffX * 0.2);
-            } else {
-                setSwipeOffset(diffX);
-            }
+            if (activeTab === 'posts' && diffX > 0) setSwipeOffset(diffX * 0.2); 
+            else if (activeTab === 'tagged' && diffX < 0) setSwipeOffset(diffX * 0.2);
+            else setSwipeOffset(diffX);
           };
 
           const onTouchEnd = () => {
             if (touchStartX !== null && touchEndX !== null && !isScrolling) {
               const distance = touchStartX - touchEndX;
-              const isLeftSwipe = distance > minSwipeDistance;
-              const isRightSwipe = distance < -minSwipeDistance;
-
-              if (isLeftSwipe) {
+              if (distance > minSwipeDistance) {
                 if (activeTab === 'posts') setActiveTab('reels');
                 else if (activeTab === 'reels') setActiveTab('tagged');
-              } else if (isRightSwipe) {
+              } else if (distance < -minSwipeDistance) {
                 if (activeTab === 'tagged') setActiveTab('reels');
                 else if (activeTab === 'reels') setActiveTab('posts');
               }
             }
-            // Reset state for next interaction
             setTouchStartX(null);
             setTouchStartY(null);
             setTouchEndX(null);
@@ -428,7 +491,6 @@
             setIsScrolling(false);
           };
 
-          // Calculate visual translation positions
           let baseTranslate = 0;
           if (activeTab === 'reels') baseTranslate = -33.333333;
           if (activeTab === 'tagged') baseTranslate = -66.666667;
@@ -452,22 +514,61 @@
           useEffect(() => {
             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             if (!isMobile) {
-              // If it's a desktop/laptop, use the Web Gmail Compose link
               setHireMeLink(`https://mail.google.com/mail/?view=cm&fs=1&to=${contactEmail}&su=${mailSubject}&body=${mailBody}`);
             }
           }, []);
+
+          // Dynamic Styles for Story Interaction
+          const overlayStyle = {
+              backgroundColor: `rgba(0, 0, 0, ${Math.max(0, 1 - storyDragY / 500)})`,
+              transition: storyTouchStartY !== null ? 'none' : 'background-color 0.3s ease'
+          };
+          
+          const storyModalStyle = {
+              transform: `translateY(${storyDragY}px) scale(${1 - (storyDragY / 2000)})`,
+              transition: storyTouchStartY !== null ? 'none' : 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)'
+          };
 
           return (
             <div className="min-h-screen text-zinc-900 dark:text-zinc-50 font-sans selection:bg-blue-200 dark:selection:bg-blue-900 relative">
               
               {/* STORY MODAL (Full Screen Overlay) */}
-              {activeStory && (
-                <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-200">
-                  {/* Progress Bar */}
+              {activeStoryIndex !== null && activeStory && (
+                <div 
+                    className="fixed inset-0 z-[100] flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-200 touch-none"
+                    style={overlayStyle}
+                >
+                  
+                  {/* Left Tap/Hold Zone */}
+                  <div 
+                      className="absolute top-16 bottom-0 left-0 w-1/3 z-40 cursor-pointer"
+                      onPointerDown={onStoryPointerDown}
+                      onPointerMove={onStoryPointerMove}
+                      onPointerUp={(e) => onStoryPointerUpOrLeave(e, 'left')}
+                      onPointerLeave={(e) => onStoryPointerUpOrLeave(e, 'left')}
+                  ></div>
+
+                  {/* Right Tap/Hold Zone */}
+                  <div 
+                      className="absolute top-16 bottom-0 right-0 w-2/3 z-40 cursor-pointer"
+                      onPointerDown={onStoryPointerDown}
+                      onPointerMove={onStoryPointerMove}
+                      onPointerUp={(e) => onStoryPointerUpOrLeave(e, 'right')}
+                      onPointerLeave={(e) => onStoryPointerUpOrLeave(e, 'right')}
+                  ></div>
+
+                  {/* Progress Bars */}
                   <div className="absolute top-4 left-4 right-4 flex gap-1 z-50">
-                    <div className="h-0.5 flex-1 bg-white/30 rounded-full overflow-hidden">
-                      <div className="h-full bg-white story-progress rounded-full"></div>
-                    </div>
+                    {HIGHLIGHTS.map((h, i) => (
+                        <div key={h.id} className="h-0.5 flex-1 bg-white/30 rounded-full overflow-hidden">
+                            <div 
+                                className="h-full bg-white rounded-full transition-none"
+                                style={{ 
+                                    width: activeStoryIndex > i ? '100%' : activeStoryIndex === i ? `${storyProgress}%` : '0%' 
+                                }}
+                            ></div>
+                        </div>
+                    ))}
                   </div>
                   
                   {/* Story Header */}
@@ -481,17 +582,20 @@
                       <span className="text-white text-sm font-semibold drop-shadow-md">krishna.malhotra</span>
                       <span className="text-white/70 text-xs">2h</span>
                     </div>
-                    <button onClick={() => setActiveStory(null)} className="text-white p-1 hover:bg-white/20 rounded-full transition-colors">
+                    <button onClick={() => { setActiveStoryIndex(null); setStoryProgress(0); }} className="text-white p-1 hover:bg-white/20 rounded-full transition-colors z-[60]">
                       <X className="w-6 h-6 drop-shadow-md" />
                     </button>
                   </div>
 
                   {/* Story Content Area */}
-                  <div className={`w-full max-w-lg h-full max-h-[90vh] sm:rounded-2xl bg-gradient-to-br ${activeStory.storyBg} relative flex flex-col justify-center p-8 overflow-hidden`}>
+                  <div 
+                    className={`w-full max-w-lg h-full max-h-[90vh] sm:rounded-2xl bg-gradient-to-br ${activeStory.storyBg} relative flex flex-col justify-center p-8 overflow-hidden`}
+                    style={storyModalStyle}
+                  >
                     {/* Abstract overlay */}
-                    <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white to-transparent mix-blend-overlay"></div>
+                    <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white to-transparent mix-blend-overlay pointer-events-none"></div>
                     
-                    <div className="z-10 bg-black/40 backdrop-blur-xl p-6 rounded-2xl border border-white/20 shadow-2xl transform transition-all hover:scale-105">
+                    <div className="z-10 bg-black/40 backdrop-blur-xl p-6 rounded-2xl border border-white/20 shadow-2xl transform transition-all hover:scale-105 pointer-events-none">
                       <div className="text-4xl mb-4">{activeStory.icon}</div>
                       <h2 className="text-2xl font-black text-white mb-2 leading-tight">{activeStory.storyTitle}</h2>
                       <p className="text-zinc-300 text-sm mb-6">{activeStory.description}</p>
@@ -628,8 +732,8 @@
                   {/* Story Highlights (Now Interactive) */}
                   <section className="px-2 pb-6 border-b border-zinc-200 dark:border-zinc-800">
                     <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide px-2">
-                      {HIGHLIGHTS.map((highlight) => (
-                        <div key={highlight.id} onClick={() => setActiveStory(highlight)} className="flex flex-col items-center gap-1 cursor-pointer group">
+                      {HIGHLIGHTS.map((highlight, index) => (
+                        <div key={highlight.id} onClick={() => { setActiveStoryIndex(index); setStoryProgress(0); }} className="flex flex-col items-center gap-1 cursor-pointer group">
                           <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-zinc-300 to-zinc-400 dark:from-zinc-700 dark:to-zinc-600 p-[2px] group-hover:from-blue-400 group-hover:to-purple-500 transition-colors">
                             <div className="w-full h-full bg-white dark:bg-zinc-950 border-2 border-white dark:border-black rounded-full flex items-center justify-center text-2xl transform transition-transform group-hover:scale-95">
                               {highlight.icon}
